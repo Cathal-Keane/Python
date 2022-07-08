@@ -1,0 +1,91 @@
+# Converts HEX (Big Endian) to Float (Little Endian) in a .txt file and exports it to a new .txt file
+# Mainly used as a workaround for taking data from the log console in "LightBLue" BLE app
+# Copy and paste data from the log into a .txt file and have it in the same folder as this program
+# New file is saved in that folder and is called "data_output.txt"
+# By Ross Creaven and Cathal Keane
+
+import sys
+import struct
+import os
+import matplotlib.pyplot as plt
+
+SMALL_SIZE = 8
+MEDIUM_SIZE = 10
+BIGGER_SIZE = 12
+
+
+files = [f for f in os.listdir('.') if os.path.isfile(f)]
+file_num=0
+print('Which file is the data?')
+for x in files:
+    print('[{0}] {1}'.format(file_num,x))
+    file_num=file_num+1
+
+file_num=input()
+name = files[int(file_num)]
+
+def int2bytes(i, enc):
+    return i.to_bytes((i.bit_length() + 7) // 8, enc)
+
+def convert_hex(str, enc1, enc2):
+    return int2bytes(int.from_bytes(bytes.fromhex(str), enc1), enc2).hex() 
+
+numbers=[]
+fails=0
+
+# Open file
+f = open(name, "r") # Open the file selected in the shell
+lines = f.readlines()
+for line in lines:
+    if 'Characteristic' in line: # Looks for the word "Characteristic" in the .txt file
+        line.rfind('<')
+        bytes_num = line[line.rfind('<')+1:line.rfind('>')] # Throws away everything excpet the string of hex values
+        try:
+            bytes_num = convert_hex(bytes_num, 'big', 'little') # Converts the hex values from big endian to little endian and then to float
+            num = struct.unpack('!f', bytes.fromhex(bytes_num))[0] 
+            numbers.append(num)
+        except:
+            fails=fails+1 # Itterates to next value if the byte length of 4 requirement fails
+            pass
+
+
+# Write to file
+f.close()
+with open("data_output.txt",'w') as f:  #Output to new .txt file named "data_ouput.txt"
+    for i, num in enumerate(numbers):
+        f.write(f'{i} {str(num)}'+'\n')
+        #f.write(str(num)+'\n')    
+print("Threw away {0} datapoints".format(fails)) #If the 4 byte issue occurs, reports datapoints removed
+
+# Plot the values in a graph
+
+x = []
+y = []
+
+# Takes the values out of the .txt output file and graphs them. Name of files must match or values will differ
+for line in open('data_output.txt', 'r'):
+    lines = [i for i in line.split()]
+    x.append(lines[0])
+    y.append(float(lines[1]))
+
+# Sets the size of the plot area. X-axis needs to be bigger than the Y-axis
+plt.figure(figsize=(20,5))
+plt.rc('xtick', labelsize = SMALL_SIZE )
+plt.rc('ytick', labelsize = SMALL_SIZE )
+plt.title("Capacitance (pF) per data point")
+
+plt.plot(x, y, marker = 'o', c = 'b')
+
+# Label whatever 
+plt.xlabel('Data Point')
+plt.ylabel('Capacitance (pF)')
+
+# Leave blank. Sometimes the actual Capacitance values will replace the Axis labels
+plt.xticks()
+plt.yticks()
+
+# Makes the plot
+plt.show()
+
+
+
